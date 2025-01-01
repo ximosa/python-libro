@@ -52,7 +52,7 @@ def extraer_epub(ruta_epub):
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
 
-def dividir_texto(texto, max_tokens=2000):
+def dividir_texto(texto, max_tokens=1000):
     """Divide el texto en fragmentos más pequeños."""
     logging.info(f"Dividiendo texto de {len(texto)} caracteres usando tokens")
     tokens = texto.split()
