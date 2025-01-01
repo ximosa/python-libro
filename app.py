@@ -6,6 +6,7 @@ import google.generativeai as genai
 from bs4 import BeautifulSoup
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 # Configuración del logging
 logging.basicConfig(
@@ -52,7 +53,7 @@ def extraer_epub(ruta_epub):
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
 
-def dividir_texto(texto, max_tokens=2500):
+def dividir_texto(texto, max_tokens=2000):
     """Divide el texto en fragmentos más pequeños."""
     logging.info(f"Dividiendo texto de {len(texto)} caracteres usando tokens")
     tokens = texto.split()
@@ -74,12 +75,30 @@ def dividir_texto(texto, max_tokens=2500):
     logging.info(f"Texto dividido en {len(fragmentos)} partes")
     return fragmentos
 
+
+def generar_resumen_fragmento(modelo, prompt, parte, max_retries=3, base_delay=2): #Reducimos el tiempo de espera base
+    """Genera el resumen de un solo fragmento."""
+    retry_count = 0
+    while retry_count < max_retries:
+        try:
+             respuesta = modelo.generate_content(prompt + parte)
+             return respuesta.text
+        except Exception as e:
+            retry_count += 1
+            wait_time = base_delay * (2 ** retry_count)  # Backoff exponencial
+            logging.warning(f"Intento {retry_count} fallido. Esperando {wait_time} segundos...")
+            time.sleep(wait_time)
+            if retry_count == max_retries:
+                logging.error(f"Error después de {max_retries} intentos: {str(e)}")
+                return None
+
+
 def generar_resumen(texto):
     logging.info("Iniciando generación de resumen")
     try:
         GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
         genai.configure(api_key=GEMINI_API_KEY)
-        modelo = genai.GenerativeModel('gemini-1.5-flash')
+        modelo = genai.GenerativeModel('gemini-pro') #Usamos el modelo gemini-pro por defecto
         logging.info("Clave de API obtenida correctamente")
     except KeyError:
         logging.error("La variable de entorno GEMINI_API_KEY no está configurada.")
@@ -105,41 +124,26 @@ def generar_resumen(texto):
         Texto a resumir:
     """
 
-    max_retries = 3
-    base_delay = 5
-
     try:
         partes = dividir_texto(texto)
         resumenes = []
 
-        for i, parte in enumerate(partes, 1):
-            logging.info(f"Procesando parte {i}/{len(partes)}")
-            st.write(f"Procesando fragmento {i}/{len(partes)}") # Mostrar el fragmento que se esta procesando
-            retry_count = 0
+        with ThreadPoolExecutor(max_workers=5) as executor:  # Ajusta max_workers según necesites
+             futures = {executor.submit(generar_resumen_fragmento, modelo, prompt, parte): i for i, parte in enumerate(partes, 1)}
 
-            while retry_count < max_retries:
-                try:
-                    respuesta = modelo.generate_content(prompt + parte)
-                    resumenes.append(respuesta.text)
-                    logging.info(f"Parte {i} resumida correctamente")
-                    time.sleep(base_delay)  # Mayor pausa entre llamadas
-                    break
-
-                except Exception as e:
-                    retry_count += 1
-                    wait_time = base_delay * (2 ** retry_count)  # Backoff exponencial
-                    logging.warning(f"Intento {retry_count} fallido. Esperando {wait_time} segundos...")
-                    time.sleep(wait_time)
-
-                    if retry_count == max_retries:
-                        logging.error(f"Error en parte {i} después de {max_retries} intentos: {str(e)}")
-                        continue
+             for future in futures:
+                 i = futures[future]
+                 st.write(f"Procesando fragmento {i}/{len(partes)}")
+                 resumen = future.result()
+                 if resumen:
+                     resumenes.append(resumen)
 
         return "\n\n".join(resumenes)
 
     except Exception as e:
         logging.error(f"Error en generación de resumen: {str(e)}")
         raise
+
 
 def main():
     st.title("Extractor de Libros EPUB")
