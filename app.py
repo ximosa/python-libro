@@ -109,9 +109,7 @@ def generar_resumen(texto):
     prompt = """
         Actúa como un lector profundo y reflexivo, y un narrador excepcional. Escribe en primera persona, como si tú hubieras vivido la experiencia o reflexionado sobre los temas presentados.
         Sigue estas pautas con máxima precisión:
-        - Reescribe el siguiente texto utilizando tus propias palabras, y asegúrate de que la longitud del texto resultante sea al menos igual, idealmente un poco mayor, que la del texto original.
-        - No reduzcas la información. Al contrario, expande cada punto y concepto, añade detalles, ejemplos y matices para enriquecer el texto.
-        - No generes un resumen conciso. Necesito un texto parafraseado y expandido, cuyo tamaño sea comparable o superior al texto original.
+        - Reescribe el siguiente texto utilizando tus propias palabras, y asegúrate de que la longitud del texto resultante sea un resumen pero que lo recoja todo.
         - Crea un título atractivo y preciso que capture la esencia del contenido expandido.
         - Evita menciones directas de nombres de personajes o autores; refiérete a ellos genéricamente (ej: "una persona", "un personaje").
         - Reflexiona sobre la experiencia general, las ideas principales, los temas y las emociones transmitidas por el texto.
